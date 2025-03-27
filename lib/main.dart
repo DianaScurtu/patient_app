@@ -1,10 +1,19 @@
-import 'dart:convert';
+import 'dart:io';
 
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'package:lab2_patient_app/patient.dart';
+import 'package:lab2_patient_app/screens/action_page.dart';
+import 'package:lab2_patient_app/screens/patients_screen.dart';
 
-void main() {
+import 'configuration/firebase_options.dart';
+import 'configuration/http_override.dart';
+import 'screens/login_page.dart';
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  HttpOverrides.global = MyHttpOverrides();
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   runApp(const MyApp());
 }
 
@@ -15,114 +24,51 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Lab2 App',
-      home: const PatientsScreen(),
       debugShowCheckedModeBanner: false,
+      home:
+          FirebaseAuth.instance.currentUser == null
+              ? const LoginPage()
+              : MainNavigationScreen(
+                email: FirebaseAuth.instance.currentUser?.email,
+              ),
     );
   }
 }
 
-class PatientsScreen extends StatefulWidget {
-  const PatientsScreen({super.key});
+class MainNavigationScreen extends StatefulWidget {
+  final String? email;
+
+  const MainNavigationScreen({super.key, required this.email});
 
   @override
-  _PatientsScreenState createState() => _PatientsScreenState();
+  State<MainNavigationScreen> createState() => _MainNavigationScreenState();
 }
 
-class _PatientsScreenState extends State<PatientsScreen> {
-  Future<List<Patient>> fetchPatients() async {
-    final url = Uri.parse(
-      "https://portal.acs.pub.ro/ehealth/unsecured/patients",
-    );
-    final response = await http.get(url);
+class _MainNavigationScreenState extends State<MainNavigationScreen> {
+  int _currentIndex = 0;
 
-    if (response.statusCode == 200) {
-      var jsonData = json.decode(response.body);
-      List<dynamic> entries = jsonData['entry'] ?? [];
-      return entries.map((entry) => Patient.fromJson(entry)).toList();
-    } else {
-      throw Exception("Failed to load patients");
-    }
-  }
+  final List<Widget> _pages = [];
 
-  Future<void> _showEditDialog(Patient patient) async {
-    final formKey = GlobalKey<FormState>();
-    final TextEditingController controller = TextEditingController();
-
-    return showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) {
-        return AlertDialog(
-          title: Text('Edit Patient ${patient.id}'),
-          content: Form(
-            key: formKey,
-            child: TextFormField(
-              controller: controller,
-              decoration: const InputDecoration(labelText: "Change Name"),
-              validator:
-                  (value) =>
-                      (value == null || value.isEmpty)
-                          ? 'Please enter some text'
-                          : null,
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () {
-                if (formKey.currentState!.validate()) {
-                  debugPrint("Updated Value: ${controller.text}");
-                  Navigator.of(context).pop();
-                }
-              },
-              child: const Text('Update'),
-            ),
-          ],
-        );
-      },
-    );
+  @override
+  void initState() {
+    super.initState();
+    _pages.addAll([PatientsScreen(email: widget.email), ActionButtons()]);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Patients List')),
-      body: FutureBuilder<List<Patient>>(
-        future: fetchPatients(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          } else if (snapshot.hasError) {
-            return Center(child: Text("Error: ${snapshot.error}"));
-          } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return const Center(child: Text("No patients found"));
-          }
-
-          final patients = snapshot.data!;
-          return ListView.builder(
-            itemCount: patients.length,
-            itemBuilder: (context, index) {
-              final patient = patients[index];
-              return Card(
-                child: ListTile(
-                  leading: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [const Icon(Icons.person), Text("${patient.id}")],
-                  ),
-                  title: Text(patient.fullName),
-                  subtitle: Text("Email: ${patient.email}"),
-                  trailing: IconButton(
-                    icon: const Icon(Icons.edit),
-                    onPressed: () => _showEditDialog(patient),
-                  ),
-                ),
-              );
-            },
-          );
-        },
+      body: _pages[_currentIndex],
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _currentIndex,
+        onTap: (newIndex) => setState(() => _currentIndex = newIndex),
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.people), label: 'Pacienți'),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.camera_alt),
+            label: 'Acțiuni',
+          ),
+        ],
       ),
     );
   }
