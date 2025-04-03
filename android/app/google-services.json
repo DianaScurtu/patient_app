@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "431854932150",
+    "project_id": "patient-app-f2dfc",
+    "storage_bucket": "patient-app-f2dfc.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:431854932150:android:7c8cc5cc5932611a4f9617",
+        "android_client_info": {
+          "package_name": "com.example.lab2_patient_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD524rleac2pcNOMoSz2QoQ1zefni9mc5o"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
